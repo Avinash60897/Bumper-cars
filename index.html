@@ -90,6 +90,31 @@
     background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);transition:background .2s,transform .15s}
   .pill:hover{background:rgba(255,255,255,.18);transform:translateY(-.1em)}
   .coverFoot{position:relative;z-index:1;font-size:.7em;opacity:.55;letter-spacing:.08em}
+  /* Cover polish */
+  #menu.cover{overflow:hidden}
+  .orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:.55;pointer-events:none;animation:drift 14s ease-in-out infinite alternate}
+  .orb.o1{width:320px;height:320px;background:#ffb347;left:-90px;top:-100px}
+  .orb.o2{width:280px;height:280px;background:#3d7bff;right:-80px;top:30%;animation-delay:-5s}
+  .orb.o3{width:240px;height:240px;background:#ff4d8d;left:30%;bottom:-120px;animation-delay:-9s}
+  @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(40px,30px) scale(1.12)}}
+  .heroBall{position:relative;z-index:1;width:64px;height:64px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffffff 0%,#f4f4f4 30%,#c9c9c9 70%,#8a8a8a 100%);
+    box-shadow:0 .6em 1.2em rgba(0,0,0,.45),0 0 2.4em rgba(255,210,63,.35);animation:bob 2.4s ease-in-out infinite}
+  .heroBall::after{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
+    background:radial-gradient(circle,#222 0 28%,transparent 30%);opacity:.7;border-radius:50%}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  .tag{font-weight:700}
+  .cards .card{position:relative;overflow:hidden}
+  .cards .card::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.14) 50%,transparent 70%);
+    transform:translateX(-120%);transition:transform .7s}
+  .cards .card:hover::before{transform:translateX(120%)}
+  .card .step{font-size:.62em;letter-spacing:.2em;text-transform:uppercase;color:#ffe08a;opacity:.85}
+  .navRow .pill{backdrop-filter:blur(6px)}
+  @media (max-width:640px){
+    .cards{grid-template-columns:1fr}
+    .brand{font-size:2.3em}
+  }
+  @media (prefers-reduced-motion: reduce){ .orb,.heroBall,.brand{animation:none} }
 
   .slots{display:flex;gap:.7em;flex-wrap:wrap;justify-content:center}
   .slot{background:rgba(0,0,0,.3);border:.12em solid rgba(255,255,255,.2);border-radius:.8em;padding:.6em .7em;
@@ -192,13 +217,15 @@
 
   <!-- COVER PAGE -->
   <div id="menu" class="overlay cover">
+    <span class="orb o1" aria-hidden="true"></span><span class="orb o2" aria-hidden="true"></span><span class="orb o3" aria-hidden="true"></span>
     <div class="brandWrap">
+      <div class="heroBall" aria-hidden="true"></div>
       <div class="tag">Premium Bumper Car Football</div>
       <h1 class="brand">BUMPER BALL</h1>
     </div>
     <div class="cards">
       <button class="card gold" id="btnCpu">
-        <span class="ico">🤖</span><span class="t">Against Computer</span><span class="d">Build a team of 1 or 2 and face the bot side</span>
+        <span class="ico">🤖</span><span class="step">Start here</span><span class="t">Against Computer</span><span class="d">Enter your name, build a team of 1 or 2, then pick a rival</span>
       </button>
       <button class="card" id="btnFriend">
         <span class="ico">👥</span><span class="t">Against a Friend</span><span class="d">Two players, each side builds a team</span>
@@ -2823,19 +2850,19 @@ function renderLevels(){
       '<span class="lvName">Level ' + lvl + '</span>' +
       '<span class="lvSub">' + lv.name + '</span>' +
       '<span class="lvDesc">' + desc + '</span>';
-    b.addEventListener('click', () => { pendingLevel = lvl; openNameMenu(); });
+    b.addEventListener('click', () => { pendingLevel = lvl; startCpu(); });
     levelBtnsEl.appendChild(b);
   });
 }
 
 function openNameMenu(){
   const multi = pendingMode === 'friend';
-  $('nameTitle').textContent = multi ? "Who's playing?" : "What's your name?";
+  $('nameTitle').textContent = multi ? "Who's playing?" : "Step 1 · What's your name?";
   $('nameSub').textContent = multi
     ? 'Both players type a name. Names go on the scoreboard.'
-    : 'Your name becomes your team name on the scoreboard.';
+    : 'Type your name. It becomes your team name on the scoreboard. Next: build your team, then pick a rival.';
   $('name2Wrap').classList.toggle('hidden', !multi);
-  $('nameStart').textContent = multi ? 'Next: build teams ▶' : 'Start ⚽';
+  $('nameStart').textContent = multi ? 'Next: build teams ▶' : 'Next: build team ▶';
   const last = readLastNames();
   $('name1').value = last.p1;
   $('name2').value = last.p2;
@@ -2932,7 +2959,7 @@ function startFromNameScreen(){
       const n1 = sanitizeName($('name1').value, 'PLAYER');
       writeLastNames(n1, readLastNames().p2);
       setup.names = { A: n1, B: 'ROBOTS' };
-      startCpu();
+      openBuilder({ kind: 'cpu' });
     }
   }catch(err){
     console.error(err);
@@ -2942,7 +2969,7 @@ function startFromNameScreen(){
 ['name1','name2'].forEach(id => {
   $(id).addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); startFromNameScreen(); } });
 });
-$('nameBack').addEventListener('click', () => { if (pendingMode === 'cpu') showOv('level'); else showOv('menu'); });
+$('nameBack').addEventListener('click', () => showOv('menu'));
 
 $('teamNext').addEventListener('click', () => {
   const roles = builder.roles.slice(0, builder.size);
@@ -2959,12 +2986,13 @@ $('teamNext').addEventListener('click', () => {
   }
 });
 $('teamBack').addEventListener('click', () => {
-  if (!builderCtx || builderCtx.kind === 'cpu'){ showOv('menu'); return; }
+  if (!builderCtx){ showOv('menu'); return; }
+  if (builderCtx.kind === 'cpu'){ openNameMenu(); return; }
   if (builderCtx.side === 'A') openNameMenu();
   else openBuilder({ kind: 'friend', side: 'A' });
 });
 
-$('btnCpu').addEventListener('click', () => { initAudio(); pendingMode = 'cpu'; openBuilder({ kind: 'cpu' }); });
+$('btnCpu').addEventListener('click', () => { initAudio(); pendingMode = 'cpu'; openNameMenu(); });
 $('btnFriend').addEventListener('click', () => { initAudio(); pendingMode = 'friend'; openNameMenu(); });
 $('btnWatch').addEventListener('click', () => { initAudio(); showOv('watch'); });
 $('watchBack').addEventListener('click', () => showOv('menu'));
